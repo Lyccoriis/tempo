@@ -1,0 +1,97 @@
+{
+  "name": "tempo",
+  "version": "0.1.0",
+  "description": "A YouTube Music desktop player with listening stats, lyrics and an equalizer",
+  "main": "dist/electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"tsc -p electron/tsconfig.json --watch\" \"wait-on tcp:5173 dist/electron/main.js && electron .\"",
+    "build": "vite build && tsc -p electron/tsconfig.json && electron-builder",
+    "release": "vite build && tsc -p electron/tsconfig.json && electron-builder --publish always",
+    "lint": "eslint src electron --ext .ts,.tsx",
+    "postinstall": "node scripts/native-deps.mjs"
+  },
+  "dependencies": {
+    "@react-three/fiber": "^9.8.0",
+    "@react-three/postprocessing": "^3.1.2",
+    "@tailwindcss/vite": "^4.3.3",
+    "better-sqlite3": "^12.11.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "electron-updater": "^6.8.9",
+    "lucide-react": "^1.34.0",
+    "motion": "^13.4.1",
+    "postprocessing": "^6.39.5",
+    "radix-ui": "^1.6.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "recharts": "^3.10.1",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.3",
+    "three": "^0.185.1",
+    "uuid": "^9.0.1",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^26.3.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@types/three": "^0.185.4",
+    "@types/uuid": "^9.0.8",
+    "@vitejs/plugin-react": "^4.3.0",
+    "concurrently": "^8.2.0",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.4.0",
+    "vite": "^5.3.0",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.tempo.player",
+    "productName": "Tempo",
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "artifactName": "Tempo-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Tempo-${version}-portable.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Kkkur",
+        "repo": "tempo",
+        "releaseType": "release"
+      }
+    ]
+  }
+}
