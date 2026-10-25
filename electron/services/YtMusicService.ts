@@ -529,12 +529,16 @@ function commandScript(command: YtMusicCommand): string {
   const player = `const p = document.getElementById('movie_player'); if (!p) throw new Error('The player has not loaded yet');`
   const press = (shape: string) => `
     const bar = document.querySelector('ytmusic-player-bar');
-    const root = bar && bar.querySelector('ytmusic-like-button-renderer');
+    const scope = bar || document;
+    const root = scope.querySelector('ytmusic-like-button-renderer');
     const inside = root ? [...root.querySelectorAll('button')] : [];
     const named = root && root.querySelector('#button-shape-${shape} button, yt-button-shape.${shape} button');
-    const labelled = bar && [...bar.querySelectorAll('button[aria-label]')].find(x => /${shape === 'like' ? '^(like|unlike|remove like)' : '^(dislike|remove dislike)'}/i.test(x.getAttribute('aria-label')));
+    const labelled = [...scope.querySelectorAll('button[aria-label]')].find(x => /${shape === 'like' ? '^(like|unlike|remove like)' : '^(dislike|remove dislike)'}/i.test(x.getAttribute('aria-label')));
     const b = named || labelled || inside[${shape === 'like' ? 0 : 1}];
-    if (!b) return 'No ${shape} button on the player bar, ' + (bar ? inside.length + ' buttons in its like control' : 'the player bar is not on the page');
+    if (!b) {
+      const seen = [...new Set([...document.querySelectorAll('*')].map(e => e.tagName.toLowerCase()).filter(t => /player|like/.test(t)))].slice(0, 8).join(' ');
+      return 'No ${shape} button, page ' + location.pathname + ', ' + (bar ? 'player bar found' : 'no player bar') + ', ' + inside.length + ' buttons in a like control, player elements: ' + (seen || 'none');
+    }
     b.click();
     return '';`
   switch (command.kind) {
