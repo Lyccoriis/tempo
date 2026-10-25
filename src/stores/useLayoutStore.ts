@@ -9,7 +9,7 @@ import { useProfileStore } from '@/stores/useProfileStore';
 
 export const DEFAULT_LAYOUT: LayoutState = {
   activePanel: 'music',
-  navSidebar: { mode: 'retracted', width: 240 },
+  navSidebar: { mode: 'locked-retracted', width: 240 },
   settingsSection: 'appearance',
   music: null,
 };

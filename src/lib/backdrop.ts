@@ -53,7 +53,7 @@ export interface BackdropSettings {
 }
 
 export const BACKDROP_DEFAULTS: BackdropSettings = {
-  style: 'ascii',
+  style: 'classic',
   react: true,
   mouseInteraction: true,
   colors: 'cover',

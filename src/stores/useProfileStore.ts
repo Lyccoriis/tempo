@@ -172,6 +172,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       }))
       if (get().activeProfileId === id) {
         window.api.shell.setTitle(`${APP_NAME} | ${saved.name}`)
+        if (patch.color) await get().updateConfig({ accent: patch.color })
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

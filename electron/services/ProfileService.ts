@@ -225,7 +225,7 @@ class ProfileService {
     const dir = profileDir(id)
     await fs.mkdir(path.join(dir, 'music'), { recursive: true })
 
-    await writeJson(configPath(id), { theme: 'oled', accent: 'blue' } as ProfileConfig)
+    await writeJson(configPath(id), { theme: 'oled', accent: opts.color || 'blue' } as ProfileConfig)
     await writeJson(layoutPath(id), {} as LayoutState)
 
     const profiles = await readRegistry()

@@ -496,12 +496,31 @@ const SPECTRUM_SCRIPT = `(() => {
   return { afterEq: !!e, levels: out }
 })()`
 
+const FIND_LIKE = `
+  const findLike = shape => {
+    const wanted = shape === 'like' ? /^(like|unlike|remove like|remove from liked|liked)/i : /^(dislike|remove dislike)/i;
+    const label = e => e.getAttribute('aria-label') || e.getAttribute('title') || '';
+    const found = [];
+    const walk = root => {
+      for (const e of root.querySelectorAll('*')) {
+        if (e.shadowRoot) walk(e.shadowRoot);
+        if (e.tagName === 'BUTTON' || e.getAttribute('role') === 'button') found.push(e);
+      }
+    };
+    for (const holder of document.querySelectorAll('ytmusic-player-bar, ytmusic-player-controls, ytmusic-miniplayer, ytmusic-player-page')) walk(holder);
+    const classic = document.querySelector('ytmusic-player-bar ytmusic-like-button-renderer #button-shape-' + shape + ' button');
+    return { button: classic || found.find(e => wanted.test(label(e))) || null, labels: found.map(label).filter(Boolean).slice(0, 24) };
+  };
+`
+
 const STATE_SCRIPT = `(() => {
   ${QUEUE_READ}
   const p = document.getElementById('movie_player')
   const m = navigator.mediaSession && navigator.mediaSession.metadata
   const data = p && p.getVideoData ? p.getVideoData() : null
-  const like = document.querySelector('ytmusic-player-bar ytmusic-like-button-renderer')
+  ${FIND_LIKE}
+  const likeAttr = document.querySelector('ytmusic-player-bar ytmusic-like-button-renderer')
+  const likeBtn = likeAttr ? null : findLike('like').button
   const art = m && m.artwork && m.artwork.length ? m.artwork[m.artwork.length - 1].src : ''
   const ready = !!(p && p.getPlayerState)
   const state = {
@@ -516,30 +535,22 @@ const STATE_SCRIPT = `(() => {
     duration: ready ? ${SONG_LENGTH}(p) : 0,
     volume: ready ? p.getVolume() : 0,
     muted: ready ? p.isMuted() : false,
-    like: (like && like.getAttribute('like-status')) || 'INDIFFERENT',
+    like: likeAttr ? likeAttr.getAttribute('like-status') || 'INDIFFERENT' : likeBtn && likeBtn.getAttribute('aria-pressed') === 'true' ? 'LIKE' : 'INDIFFERENT',
     ad: !!(p && p.classList.contains('ad-showing')),
     shuffle: !!(qs && qs.shuffleEnabled),
     repeat: (qs && qs.repeatMode) || 'NONE',
     bpm: ${TEMPO_READ},
   }
-  return { state, queue: { items, current: qs ? qs.selectedItemIndex : -1 } }
+  return { state, queue: { items, current: qs ? qs.selectedItemIndex : -1 }, likeKnown: !!(likeAttr || likeBtn) }
 })()`
 
 function commandScript(command: YtMusicCommand): string {
   const player = `const p = document.getElementById('movie_player'); if (!p) throw new Error('The player has not loaded yet');`
   const press = (shape: string) => `
-    const bar = document.querySelector('ytmusic-player-bar');
-    const scope = bar || document;
-    const root = scope.querySelector('ytmusic-like-button-renderer');
-    const inside = root ? [...root.querySelectorAll('button')] : [];
-    const named = root && root.querySelector('#button-shape-${shape} button, yt-button-shape.${shape} button');
-    const labelled = [...scope.querySelectorAll('button[aria-label]')].find(x => /${shape === 'like' ? '^(like|unlike|remove like)' : '^(dislike|remove dislike)'}/i.test(x.getAttribute('aria-label')));
-    const b = named || labelled || inside[${shape === 'like' ? 0 : 1}];
-    if (!b) {
-      const seen = [...new Set([...document.querySelectorAll('*')].map(e => e.tagName.toLowerCase()).filter(t => /player|like/.test(t)))].slice(0, 8).join(' ');
-      return 'No ${shape} button, page ' + location.pathname + ', ' + (bar ? 'player bar found' : 'no player bar') + ', ' + inside.length + ' buttons in a like control, player elements: ' + (seen || 'none');
-    }
-    b.click();
+    ${FIND_LIKE}
+    const r = findLike('${shape}');
+    if (!r.button) return 'No ${shape} button, page ' + location.pathname + ', player buttons: ' + (r.labels.join(' | ') || 'none');
+    r.button.click();
     return '';`
   switch (command.kind) {
     case 'play': return `(() => { ${player} p.playVideo() })()`
@@ -646,6 +657,64 @@ function apiScript(endpoint: string, body: object): string {
     if (!res.ok) throw new Error('YouTube Music replied ' + res.status)
     return res.json()
   })()`
+}
+
+type LikeStatus = YtMusicState['like']
+
+let likeVideo = ''
+let likeStatus: LikeStatus = 'INDIFFERENT'
+let likeFetching = ''
+
+function findLikeStatus(node: unknown): LikeStatus | null {
+  if (!node || typeof node !== 'object') return null
+  const record = node as Record<string, unknown>
+  const own = record.likeStatus
+  if (own === 'LIKE' || own === 'DISLIKE' || own === 'INDIFFERENT') return own
+  for (const value of Object.values(record)) {
+    const found = findLikeStatus(value)
+    if (found) return found
+  }
+  return null
+}
+
+function applyLike(state: YtMusicState, known: boolean): void {
+  if (known || !state.videoId) return
+  if (likeVideo === state.videoId) {
+    state.like = likeStatus
+    return
+  }
+  if (likeFetching === state.videoId) return
+  const videoId = state.videoId
+  likeFetching = videoId
+  ytMusicService
+    .run<unknown>(apiScript('next', { videoId, isAudioOnly: true }))
+    .then(res => {
+      likeVideo = videoId
+      likeStatus = findLikeStatus(res) ?? 'INDIFFERENT'
+    })
+    .catch(() => {
+      likeVideo = videoId
+      likeStatus = 'INDIFFERENT'
+    })
+    .finally(() => {
+      likeFetching = ''
+    })
+}
+
+async function likeThroughApi(kind: 'like' | 'dislike'): Promise<void> {
+  const shown = lastState ? (JSON.parse(lastState) as YtMusicState) : null
+  if (!shown || !shown.videoId) throw new Error('Nothing is playing')
+  if (!shown.signedIn) throw new Error('Sign in to like songs')
+  const current = likeVideo === shown.videoId ? likeStatus : shown.like
+  const wanted: LikeStatus = kind === 'like' ? 'LIKE' : 'DISLIKE'
+  const next: LikeStatus = current === wanted ? 'INDIFFERENT' : wanted
+  const endpoint = next === 'LIKE' ? 'like/like' : next === 'DISLIKE' ? 'like/dislike' : 'like/removelike'
+  await ytMusicService.run(apiScript(endpoint, { target: { videoId: shown.videoId } }))
+  likeVideo = shown.videoId
+  likeStatus = next
+  const updated = { ...shown, like: next }
+  lastState = JSON.stringify(updated)
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('ytmusic:state', updated)
 }
 
 function finite(n: number): number {
@@ -938,7 +1007,10 @@ export const ytMusicService = {
 
   async command(command: YtMusicCommand): Promise<void> {
     const failure = await ytMusicService.run<string | undefined>(`window.__ctActed = true; ${commandScript(command)}`)
-    if (typeof failure === 'string' && failure) throw new Error(failure)
+    if (typeof failure === 'string' && failure) {
+      if (command.kind === 'like' || command.kind === 'dislike') return likeThroughApi(command.kind)
+      throw new Error(failure)
+    }
   },
 
   async setEq(next: YtMusicEq): Promise<boolean> {
