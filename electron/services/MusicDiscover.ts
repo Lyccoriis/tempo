@@ -19,7 +19,7 @@ import type {
 
 type Db = Database.Database
 
-const UA = 'Tempo/0.1 ( https://github.com/Kkkur/tempo )'
+const UA = 'Tempo/0.1 ( https://github.com/Lyccoriis/tempo )'
 const DAY = 24 * 60 * 60 * 1000
 const RETRY_MS = 14 * DAY
 const MB_PROVIDER = 'musicbrainz'

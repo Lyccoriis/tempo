@@ -194,7 +194,7 @@ function lrclib(query: Record<string, string>, asked: LrclibAsked): Promise<Lrcl
   const url = `${LRCLIB}/search?${new URLSearchParams(query)}`
   let found = asked.get(url)
   if (!found) {
-    found = fetch(url, { headers: { 'User-Agent': 'Tempo/0.1 (https://github.com/Kkkur/tempo)' } }).then(res =>
+    found = fetch(url, { headers: { 'User-Agent': 'Tempo/0.1 (https://github.com/Lyccoriis/tempo)' } }).then(res =>
       res.ok ? (res.json() as Promise<LrclibTrack[]>) : [],
     )
     asked.set(url, found)

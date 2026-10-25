@@ -10,7 +10,7 @@ export interface MusicAbout {
 }
 
 const API = 'https://en.wikipedia.org'
-const HEADERS = { 'User-Agent': 'Tempo/0.1 (https://github.com/Kkkur/tempo) desktop music player' }
+const HEADERS = { 'User-Agent': 'Tempo/0.1 (https://github.com/Lyccoriis/tempo) desktop music player' }
 const NOISE = /\s*[([][^)\]]*\b(official|video|audio|lyrics?|visualizer|remaster(ed)?|live|mv|hd|4k|feat\.?|ft\.?)\b[^)\]]*[)\]]/gi
 const FEAT = /\s*\b(feat\.?|ft\.?)\s.*$/i
 const LABELS = /^(song|single|ep|album|playlist|video|artist|profile|\d[\d.,:]*\s*\w*)$/i

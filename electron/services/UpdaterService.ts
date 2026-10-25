@@ -1,7 +1,7 @@
 import { app, type BrowserWindow } from 'electron'
 import type { AppUpdater } from 'electron-updater'
 
-const OWNER = 'Kkkur'
+const OWNER = 'Lyccoriis'
 const REPO = 'tempo'
 
 const FIRST_CHECK_MS = 15_000
