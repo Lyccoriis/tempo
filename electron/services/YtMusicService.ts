@@ -527,8 +527,16 @@ const STATE_SCRIPT = `(() => {
 
 function commandScript(command: YtMusicCommand): string {
   const player = `const p = document.getElementById('movie_player'); if (!p) throw new Error('The player has not loaded yet');`
-  const press = (shape: string) =>
-    `const b = document.querySelector('ytmusic-player-bar ytmusic-like-button-renderer #button-shape-${shape} button'); if (!b) throw new Error('No ${shape} button on the player bar'); b.click();`
+  const press = (shape: string) => `
+    const bar = document.querySelector('ytmusic-player-bar');
+    const root = bar && bar.querySelector('ytmusic-like-button-renderer');
+    const inside = root ? [...root.querySelectorAll('button')] : [];
+    const named = root && root.querySelector('#button-shape-${shape} button, yt-button-shape.${shape} button');
+    const labelled = bar && [...bar.querySelectorAll('button[aria-label]')].find(x => /${shape === 'like' ? '^(like|unlike|remove like)' : '^(dislike|remove dislike)'}/i.test(x.getAttribute('aria-label')));
+    const b = named || labelled || inside[${shape === 'like' ? 0 : 1}];
+    if (!b) return 'No ${shape} button on the player bar, ' + (bar ? inside.length + ' buttons in its like control' : 'the player bar is not on the page');
+    b.click();
+    return '';`
   switch (command.kind) {
     case 'play': return `(() => { ${player} p.playVideo() })()`
     case 'pause': return `(() => { ${player} p.pauseVideo() })()`
@@ -925,7 +933,8 @@ export const ytMusicService = {
   },
 
   async command(command: YtMusicCommand): Promise<void> {
-    await ytMusicService.run(`window.__ctActed = true; ${commandScript(command)}`)
+    const failure = await ytMusicService.run<string | undefined>(`window.__ctActed = true; ${commandScript(command)}`)
+    if (typeof failure === 'string' && failure) throw new Error(failure)
   },
 
   async setEq(next: YtMusicEq): Promise<boolean> {
