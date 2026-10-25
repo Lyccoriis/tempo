@@ -45,7 +45,7 @@ export function findBrowser(): Browser | null {
 
 export function openSignIn(browser: Browser, url = SIGN_IN_URL, dir = profileDir()): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(browser.exe, [`--user-data-dir=${dir}`, '--no-first-run', '--no-default-browser-check', url], { stdio: 'ignore' })
+    const child = spawn(browser.exe, [`--user-data-dir=${dir}`, '--no-first-run', '--no-default-browser-check', '--disable-sync', '--disable-extensions', url], { stdio: 'ignore' })
     child.on('error', reject)
     child.on('exit', () => resolve())
   })
@@ -55,7 +55,7 @@ export function harvest(browser: Browser, dir = profileDir()): Promise<{ cookies
   return new Promise((resolve, reject) => {
     const child = spawn(
       browser.exe,
-      [`--user-data-dir=${dir}`, '--headless=new', '--remote-debugging-pipe', '--no-first-run', 'about:blank'],
+      [`--user-data-dir=${dir}`, '--headless=new', '--remote-debugging-pipe', '--no-first-run', '--disable-sync', '--disable-extensions', 'about:blank'],
       { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] },
     )
     const input = child.stdio[3] as Writable
