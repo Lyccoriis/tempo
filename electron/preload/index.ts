@@ -15,6 +15,9 @@ contextBridge.exposeInMainWorld('api', {
     update: (id: string, patch: { name?: string; role?: string; color?: string }) =>
       ipcRenderer.invoke('profile:update', id, patch),
 
+    setPicture: (id: string, dataUrl: string | null) =>
+      ipcRenderer.invoke('profile:setPicture', id, dataUrl),
+
     delete: (id: string) =>
       ipcRenderer.invoke('profile:delete', id),
 

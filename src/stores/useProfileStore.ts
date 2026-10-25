@@ -11,6 +11,7 @@ export interface Profile {
   name: string
   color?: string
   role?: string
+  picture?: string
   createdAt: string
   updatedAt: string
 }
@@ -52,6 +53,7 @@ export interface CreateProfileOpts {
   name: string
   color?: string
   role?: string
+  picture?: string | null
 }
 
 interface ProfileStore {
@@ -59,12 +61,14 @@ interface ProfileStore {
   activeProfileId: string | null
   activeConfig: ProfileConfig | null
   loading: boolean
+  loaded: boolean
   error: string | null
 
   loadProfiles: () => Promise<void>
   switchProfile: (id: string) => Promise<void>
   createProfile: (opts: CreateProfileOpts) => Promise<Profile>
   updateProfile: (id: string, patch: Partial<Pick<Profile, 'name' | 'role' | 'color'>>) => Promise<void>
+  setPicture: (id: string, dataUrl: string | null) => Promise<void>
   deleteProfile: (id: string) => Promise<void>
   updateConfig: (partial: Partial<ProfileConfig>) => Promise<void>
 }
@@ -74,6 +78,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   activeProfileId: null,
   activeConfig: null,
   loading: false,
+  loaded: false,
   error: null,
 
   loadProfiles: async () => {
@@ -82,7 +87,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       const profiles: Profile[] = await window.api.profile.list()
 
       if (profiles.length === 0) {
-        set({ profiles: [], activeProfileId: null, activeConfig: null, loading: false })
+        set({ profiles: [], activeProfileId: null, activeConfig: null, loading: false, loaded: true })
         return
       }
 
@@ -94,6 +99,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         activeProfileId: first.id,
         activeConfig: config,
         loading: false,
+        loaded: true,
       })
 
       await useLayoutStore.getState().loadLayout(first.id)
@@ -101,7 +107,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       console.error('[useProfileStore] loadProfiles failed:', err)
-      set({ loading: false, error: message })
+      set({ loading: false, loaded: true, error: message })
     }
   },
 
@@ -172,6 +178,18 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       console.error('[useProfileStore] updateProfile failed:', err)
       set({ error: message })
       await get().loadProfiles()
+    }
+  },
+
+  setPicture: async (id: string, dataUrl: string | null) => {
+    try {
+      const saved: Profile = await window.api.profile.setPicture(id, dataUrl)
+      set(state => ({ profiles: state.profiles.map(p => (p.id === id ? saved : p)) }))
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('[useProfileStore] setPicture failed:', err)
+      set({ error: message })
+      throw err
     }
   },
 

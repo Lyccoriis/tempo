@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import AppBackdrop from '@/components/layout/AppBackdrop';
 import AppShell from '@/components/layout/AppShell';
 import BackdropKaraoke from '@/components/layout/BackdropKaraoke';
+import CreateProfileScreen from '@/components/layout/CreateProfileScreen';
 import GlobalFinder from '@/components/layout/GlobalFinder';
 import TitleBar from '@/components/layout/TitleBar';
 import UpdateHost from '@/components/layout/UpdateHost';
@@ -27,7 +28,8 @@ function revealApp(): void {
 export default function App() {
   const loadProfiles = useProfileStore(s => s.loadProfiles);
   const profileId = useProfileStore(s => s.activeProfileId);
-  const profilesLoading = useProfileStore(s => s.loading);
+  const profilesLoaded = useProfileStore(s => s.loaded);
+  const hasProfiles = useProfileStore(s => s.profiles.length > 0);
   const profilesError = useProfileStore(s => s.error);
   const hydrated = useLayoutStore(s => s.hydrated);
   const backdropOnly = useUiStore(s => s.backdropOnly);
@@ -41,7 +43,8 @@ export default function App() {
     void loadProfiles();
   }, [loadProfiles]);
 
-  const booted = Boolean(profilesError) || (!profilesLoading && hydrated);
+  const needsProfile = profilesLoaded && !hasProfiles && !profilesError;
+  const booted = Boolean(profilesError) || (profilesLoaded && (hydrated || needsProfile));
 
   useEffect(() => {
     if (booted) revealApp();
@@ -66,7 +69,7 @@ export default function App() {
           <div
             className={`flex min-h-0 min-w-0 transition-opacity duration-300 [grid-area:1/1] ${backdropOnly ? 'invisible opacity-0' : ''}`}
           >
-            <AppShell />
+            {needsProfile ? <CreateProfileScreen /> : <AppShell />}
           </div>
           {backdropOnly && <BackdropKaraoke />}
         </div>

@@ -55,6 +55,7 @@ declare global {
           id: string,
           patch: { name?: string; role?: string; color?: string },
         ) => Promise<Profile>
+        setPicture: (id: string, dataUrl: string | null) => Promise<Profile>
         delete: (id: string) => Promise<void>
         paths: (id: string) => Promise<{
           root: string

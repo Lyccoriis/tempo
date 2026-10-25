@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Check, ChevronsUpDown, Plus, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import PicturePicker from '@/components/shared/PicturePicker';
+import ProfileAvatarBase from '@/components/shared/ProfileAvatar';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,17 +24,6 @@ import { cn } from '@/lib/utils';
 import { useLayoutStore } from '@/stores/useLayoutStore';
 import { useProfileStore, type Profile } from '@/stores/useProfileStore';
 
-function initialsOf(name: string): string {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(word => word[0]!.toUpperCase())
-      .join('') || '?'
-  );
-}
-
 interface ProfileSwitcherProps {
   collapsed?: boolean;
 }
@@ -50,6 +40,7 @@ export default function ProfileSwitcher({ collapsed = false }: ProfileSwitcherPr
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [newAccent, setNewAccent] = useState<string>('blue');
+  const [newPicture, setNewPicture] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const active = profiles.find(p => p.id === activeId) ?? null;
@@ -67,11 +58,12 @@ export default function ProfileSwitcher({ collapsed = false }: ProfileSwitcherPr
     if (!newName.trim()) return;
     setBusy(true);
     try {
-      await createProfile({ name: newName.trim(), color: newAccent });
+      await createProfile({ name: newName.trim(), color: newAccent, picture: newPicture });
       toast.success(`Created ${newName.trim()}`);
       setCreating(false);
       setOpen(false);
       setNewName('');
+      setNewPicture(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not create profile');
     } finally {
@@ -161,6 +153,8 @@ export default function ProfileSwitcher({ collapsed = false }: ProfileSwitcherPr
             <DialogTitle>New profile</DialogTitle>
           </DialogHeader>
 
+          <PicturePicker name={newName} color={newAccent} value={newPicture} onChange={setNewPicture} />
+
           <Field>
             <FieldLabel htmlFor="profile-name">Name</FieldLabel>
             <Input
@@ -214,15 +208,13 @@ export default function ProfileSwitcher({ collapsed = false }: ProfileSwitcherPr
 
 function ProfileAvatar({ profile, compact = false }: { profile: Profile | null; compact?: boolean }) {
   return (
-    <Avatar
+    <ProfileAvatarBase
+      name={profile?.name ?? ''}
+      color={profile?.color}
+      picture={profile?.picture}
       className={`size-7 shrink-0 ring-primary ring-offset-sidebar ${
         compact ? 'ring-1 ring-offset-1' : 'ring-2 ring-offset-2'
       }`}
-      data-accent={profile?.color}
-    >
-      <AvatarFallback className="text-[10px]">
-        {profile ? initialsOf(profile.name) : '?'}
-      </AvatarFallback>
-    </Avatar>
+    />
   );
 }

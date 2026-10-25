@@ -26,6 +26,11 @@ export function registerProfileHandlers(ipcMain: IpcMain): void {
     },
   )
 
+  ipcMain.handle('profile:setPicture', async (_event, id: string, dataUrl: string | null) => {
+    if (!id) throw new Error('id is required')
+    return profileService.setPicture(id, dataUrl)
+  })
+
   ipcMain.handle('profile:delete', async (_event, id: string) => {
     if (!id) throw new Error('id is required')
     return profileService.deleteProfile(id)

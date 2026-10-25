@@ -1,3 +1,4 @@
+import { nativeImage } from 'electron'
 import fs from 'fs/promises'
 import fss from 'fs'
 import os from 'os'
@@ -11,6 +12,7 @@ export interface Profile {
   name: string
   color?: string
   role?: string
+  picture?: string
   createdAt: string
   updatedAt: string
 }
@@ -39,6 +41,7 @@ export interface CreateProfileOpts {
   name: string
   color?: string
   role?: string
+  picture?: string | null
 }
 
 function baseDir(): string {
@@ -81,6 +84,31 @@ async function freeFolder(name: string): Promise<string> {
 
 function configPath(id: string): string {
   return path.join(profileDir(id), 'config.json')
+}
+
+function pictureFile(id: string): string {
+  return path.join(profileDir(id), 'picture.png')
+}
+
+async function withPicture(profile: Profile): Promise<Profile> {
+  try {
+    const bytes = await fs.readFile(pictureFile(profile.id))
+    return { ...profile, picture: `data:image/png;base64,${bytes.toString('base64')}` }
+  } catch {
+    const { picture: _gone, ...rest } = profile
+    return rest
+  }
+}
+
+async function savePicture(id: string, dataUrl: string | null): Promise<void> {
+  if (!dataUrl) {
+    await fs.rm(pictureFile(id), { force: true })
+    return
+  }
+  const image = nativeImage.createFromDataURL(dataUrl)
+  if (image.isEmpty()) throw new Error('That file is not a picture')
+  const png = image.resize({ width: 256, height: 256, quality: 'best' }).toPNG()
+  await fs.writeFile(pictureFile(id), png)
 }
 
 function layoutPath(id: string): string {
@@ -142,7 +170,7 @@ class ProfileService {
 
   async listProfiles(): Promise<Profile[]> {
     await ensureBaseDir()
-    return readRegistry()
+    return Promise.all((await readRegistry()).map(withPicture))
   }
 
   async updateProfile(
@@ -163,7 +191,17 @@ class ProfileService {
     found.updatedAt = new Date().toISOString()
 
     await writeRegistry(profiles)
-    return found
+    return withPicture(found)
+  }
+
+  async setPicture(id: string, dataUrl: string | null): Promise<Profile> {
+    const profiles = await readRegistry()
+    const found = profiles.find(p => p.id === id)
+    if (!found) throw new Error(`Profile not found: ${id}`)
+    await savePicture(id, dataUrl)
+    found.updatedAt = new Date().toISOString()
+    await writeRegistry(profiles)
+    return withPicture(found)
   }
 
   async createProfile(opts: CreateProfileOpts): Promise<Profile> {
@@ -194,7 +232,9 @@ class ProfileService {
     profiles.push(profile)
     await writeRegistry(profiles)
 
-    return profile
+    if (opts.picture) await savePicture(id, opts.picture)
+
+    return withPicture(profile)
   }
 
   async switchProfile(id: string): Promise<void> {

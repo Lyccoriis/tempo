@@ -3,7 +3,6 @@ import path from 'node:path'
 import { allowArtworkCors } from './services/ArtworkCors'
 import { closeMusicDb, setMusicDbWindow } from './services/MusicDatabase'
 import { stopDiscover } from './services/MusicDiscover'
-import { profileService } from './services/ProfileService'
 import { initUpdater, stopUpdater } from './services/UpdaterService'
 import { setYtMusicWindow, ytMusicService } from './services/YtMusicService'
 import { registerProfileHandlers } from './ipc/profileHandlers'
@@ -84,17 +83,6 @@ function createWindow(): BrowserWindow {
   return created
 }
 
-async function bootstrapProfiles(): Promise<void> {
-  try {
-    const profiles = await profileService.listProfiles()
-    if (profiles.length === 0) {
-      await profileService.createProfile({ name: 'Default' })
-    }
-  } catch (err) {
-    console.error('[main] Profile bootstrap failed:', err)
-  }
-}
-
 function registerHandlers(): void {
   registerProfileHandlers(ipcMain)
   registerUpdateHandlers(ipcMain)
@@ -119,7 +107,6 @@ app.whenReady().then(async () => {
 
   nativeTheme.themeSource = readTheme() === 'light' ? 'light' : 'dark'
 
-  await bootstrapProfiles()
   registerHandlers()
 
   const win = createWindow()

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Check, FolderOpen, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -13,7 +13,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import PicturePicker from '@/components/shared/PicturePicker';
+import ProfileAvatar from '@/components/shared/ProfileAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,18 +29,8 @@ import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { ItemGroup, ItemSeparator } from '@/components/ui/item';
 import { ACCENTS } from '@/lib/accents';
+import { readPicture } from '@/lib/pictures';
 import { useProfileStore, type Profile } from '@/stores/useProfileStore';
-
-function initialsOf(name: string): string {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(word => word[0]!.toUpperCase())
-      .join('') || '?'
-  );
-}
 
 export default function ProfilesCard() {
   const profiles = useProfileStore(s => s.profiles);
@@ -52,6 +43,7 @@ export default function ProfilesCard() {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [accent, setAccent] = useState('blue');
+  const [picture, setPicture] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function run(work: () => Promise<unknown>, done: string) {
@@ -67,10 +59,11 @@ export default function ProfilesCard() {
     if (!name.trim()) return;
     setBusy(true);
     try {
-      await createProfile({ name: name.trim(), color: accent });
+      await createProfile({ name: name.trim(), color: accent, picture });
       toast.success(`Created ${name.trim()}`);
       setCreating(false);
       setName('');
+      setPicture(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not create profile');
     } finally {
@@ -112,6 +105,8 @@ export default function ProfilesCard() {
           <DialogHeader>
             <DialogTitle>New profile</DialogTitle>
           </DialogHeader>
+
+          <PicturePicker name={name} color={accent} value={picture} onChange={setPicture} />
 
           <Field>
             <FieldLabel htmlFor="new-profile-name">Name</FieldLabel>
@@ -174,7 +169,18 @@ interface ProfileRowProps {
 
 function ProfileRow({ profile, active, onlyOne, onSwitch, onDelete }: ProfileRowProps) {
   const updateProfile = useProfileStore(s => s.updateProfile);
+  const setProfilePicture = useProfileStore(s => s.setPicture);
   const [name, setName] = useState(profile.name);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  async function changePicture(file: File | undefined) {
+    if (!file) return;
+    try {
+      await setProfilePicture(profile.id, await readPicture(file));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not read that picture');
+    }
+  }
 
   async function revealFolder() {
     try {
@@ -196,9 +202,29 @@ function ProfileRow({ profile, active, onlyOne, onSwitch, onDelete }: ProfileRow
 
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 py-3">
-      <Avatar className="size-8 shrink-0 ring-2 ring-primary ring-offset-2 ring-offset-card" data-accent={profile.color}>
-        <AvatarFallback className="text-[10px]">{initialsOf(profile.name)}</AvatarFallback>
-      </Avatar>
+      <button
+        type="button"
+        aria-label={`change the picture of ${profile.name}`}
+        onClick={() => fileInput.current?.click()}
+        className="rounded-full focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        <ProfileAvatar
+          name={profile.name}
+          color={profile.color}
+          picture={profile.picture}
+          className="size-8 shrink-0 ring-2 ring-primary ring-offset-2 ring-offset-card"
+        />
+      </button>
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={e => {
+          void changePicture(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
 
       <div className="flex min-w-[220px] flex-1 flex-col gap-1">
         <div className="flex items-center gap-2">
